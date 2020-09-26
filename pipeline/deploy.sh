@@ -17,6 +17,7 @@ aws cloudformation deploy \
     "ScalingMaxCapacity=${ScalingMaxCapacity}" \
     "CostCentre=${COSTCENTRE}" \
     "AmiID=${AmiID}" \
+    "Gitsha=${GIT_COMMIT_SHORT}" \
     --tags \
     "ServiceName=${SERVICE_NAME}" \
     "AppName=${APP_NAME}" \

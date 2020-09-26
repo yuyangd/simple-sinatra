@@ -51,6 +51,10 @@ Parameters:
     AllowedValues:
     - EC2
     - ELB
+  Gitsha:
+    Type: String
+
+
   
 Resources:
 
@@ -76,7 +80,7 @@ Resources:
           #######
           mkdir /appdemo
           aws s3 sync s3://${AWS::AccountId}-${AWS::StackName} /appdemo
-          unzip /appdemo/src.zip -d /appdemo
+          unzip /appdemo/src-${Gitsha}.zip -d /appdemo
           cd /appdemo/src
           bundle install
           bundle exec rackup -p 3000 -E production -D

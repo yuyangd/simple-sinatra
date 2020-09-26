@@ -28,9 +28,8 @@ create-s3:
 	aws s3api create-bucket --bucket ${ACCOUNTID}-${STACKNAME} --region ap-southeast-2 --create-bucket-configuration LocationConstraint=ap-southeast-2
 
 upload-app:
-	# FIXME: use git sha for zip file
-	zip -vr src.zip src
-	aws s3 cp src.zip s3://${ACCOUNTID}-${STACKNAME}
+	zip -vr src-${GIT_COMMIT_SHORT}.zip src
+	aws s3 cp src-${GIT_COMMIT_SHORT}.zip s3://${ACCOUNTID}-${STACKNAME}
 
 deploy: upload-app
 	@echo "Deploy app stack: ${STACKNAME}..."
