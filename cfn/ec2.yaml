@@ -54,8 +54,6 @@ Parameters:
   Gitsha:
     Type: String
 
-
-  
 Resources:
 
   InstanceLaunchConfiguration:
