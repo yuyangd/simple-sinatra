@@ -1,0 +1,227 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create an EC2 Instance with ASG
+Parameters:
+  # AmiID:
+  #   Type : AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+  #   Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+  AmiID:
+    Description: latest AMIID
+    Type: String
+  KeyName:
+    Description: The AWS SSH key name to be used for the EC2 instance
+    Type: String
+  VpcId:
+    Description: The VPC to be used
+    Type: AWS::EC2::VPC::Id
+  SubnetPrivateA:
+    Description: Subnet PrivateA
+    Type: String
+  SubnetPrivateB:
+    Description: Subnet PrivateB
+    Type: String
+  SubnetPrivateC:
+    Description: Subnet PrivateC
+    Type: String
+  EC2Type:
+    Description: The instance-type to be used
+    Type: String
+    Default: t3.micro
+  CidrIp:
+    Description: The CidrIP that will be used for internal usage and allow to access port 22 and 80
+    Type: String
+  CostCentre:
+    Description: The Cost Centre to tag for billing and cost analysis purpose
+    Type: String
+  ScalingMaxCapacity:
+    Description: Max Scaling Capacity
+    Type: String
+  ScalingMinCapacity:
+    Description: Min Scaling Capacity
+    Type: String
+  ScalingDesiredCapacity:
+    Description: Desired Scaling Capacity
+    Type: String
+  HealthCheckGracePeriod:
+    Type: String
+    Default: '500'
+  HealthCheckType:
+    Type: String
+    Default: EC2
+    AllowedValues:
+    - EC2
+    - ELB
+  
+Resources:
+
+  InstanceLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      KeyName: !Ref KeyName
+      ImageId: !Ref AmiID
+      InstanceType: !Ref EC2Type
+      InstanceMonitoring: true
+      IamInstanceProfile: !Ref InstanceProfile
+      SecurityGroups:
+      - !Ref AppInstanceSG
+      UserData: !Base64
+        Fn::Sub: |
+          #!/bin/bash -ex
+          sudo su
+          apt-get update -y
+          apt-get install -y awscli jq unzip git telnet mtr tree bundler nginx
+
+          #######
+          ### app and nginx config ###
+          #######
+          mkdir /appdemo
+          aws s3 sync s3://${AWS::AccountId}-${AWS::StackName} /appdemo
+          unzip /appdemo/src.zip -d /appdemo
+          cd /appdemo/src
+          bundle install
+          bundle exec rackup -p 3000 -E production -D
+          # PRIVATE_IP=$( curl http://169.254.169.254/latest/meta-data/local-ipv4 )
+          mv /appdemo/src/appdemo /etc/nginx/sites-available
+          unlink /etc/nginx/sites-enabled/default
+          ln -s /etc/nginx/sites-available/appdemo /etc/nginx/sites-enabled
+          systemctl stop nginx
+          systemctl start nginx
+
+  InstanceAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        MinInstancesInService: 1
+    Properties:
+      LaunchConfigurationName: !Ref InstanceLaunchConfiguration
+      VPCZoneIdentifier:
+      - !Ref SubnetPrivateA
+      - !Ref SubnetPrivateB
+      - !Ref SubnetPrivateC
+      MaxSize: !Ref ScalingMaxCapacity
+      MinSize: !Ref ScalingMinCapacity
+      DesiredCapacity: !Ref ScalingDesiredCapacity
+      TargetGroupARNs:
+        - !Ref ALBTargetGroup
+      HealthCheckGracePeriod: !Ref HealthCheckGracePeriod
+      HealthCheckType: !Ref HealthCheckType
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-instance
+          PropagateAtLaunch: true
+        - Key: CostCentre
+          Value: !Ref CostCentre
+          PropagateAtLaunch: true
+
+  AppInstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for AppInstance
+      GroupName: !Sub ${AWS::StackName}-SG
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref CidrIp
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        SourceSecurityGroupId: !Ref ALBSG
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-SG
+      - Key: CostCentre
+        Value: !Ref CostCentre
+  
+  # Instance IAM Profile
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    DependsOn: InstanceIamRole
+    Properties:
+      Path: "/"
+      Roles:
+      - Ref: InstanceIamRole
+  
+  # IAM role
+  InstanceIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role to be used by Instance
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+      - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+  
+  ALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for ALB
+      GroupName: !Sub ${AWS::StackName}-alb-sg
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: !Ref CidrIp
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-alb-sg
+      - Key: CostCentre
+        Value: !Ref CostCentre
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Scheme: internal
+      Subnets:
+      - !Ref SubnetPrivateA
+      - !Ref SubnetPrivateB
+      - !Ref SubnetPrivateC
+      SecurityGroups:
+      - !Ref ALBSG
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-alb
+      - Key: CostCentre
+        Value: !Ref CostCentre
+    
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-alb-tg
+      - Key: CostCentre
+        Value: !Ref CostCentre
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 30
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      Protocol: HTTP
+      Port: 80
+      LoadBalancerArn: !Ref LoadBalancer
+      DefaultActions:
+      - TargetGroupArn: !Ref ALBTargetGroup
+        Type: forward
+
+Outputs:
+  AppALBUrl:
+    Value: !Sub http://${LoadBalancer.DNSName}
+
