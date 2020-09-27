@@ -1,6 +1,6 @@
 app-demo docker
 ===================================
-- this is for sinatra app deploy on k8s (on port 3000).
+- this is for sinatra app deploy on ecs fargate (on port 80).
 - docker image has been build and pushed to hub repo: https://hub.docker.com/repository/docker/amyjdocker/sinatrademo
 
 As a simple demo, I only build ruby script without configing ngnix into the docker image, to simply show that docker can be leveraged for easier deployment. 
@@ -19,10 +19,9 @@ ecs
 # 2.Deploy
 
 ## Parameter
-You will need to update the following 4 parameters from **common.mk** file.
-1. Keypair that used to ssh to EC2 instance: **```KEY_NAME```**
-2. Your VPC ID: **```VPCID```**
-3. Internal_Cider IP range that is allowed to ssh on 22 port, and access the webapp 80 port: **```Internal_CiderIp```**
+You will need to update the following 3 parameters from **common.mk** file.
+1. Your VPC ID: **```VPCID```**
+2. Internal_Cider IP range that is allowed to access the webapp 80 port: **```Internal_CiderIp```**
 4. VPC subnets **Name** tag that will be used to query Subnet ID within the above VPC: **```VPC_Subnet_Tag```**
     * **Please note**: if your VPC subnets does not have **Name** tag, please remove the query and directly provide SubnetsID for parameters: SubnetPrivateA, SubnetPrivateB, SubnetPrivateC, eg: ```SubnetPrivateA=subnet-exampleid1234567```
 
