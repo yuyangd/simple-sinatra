@@ -1,0 +1,284 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation template to create an sinatra deployment.'
+
+Parameters:
+  EnvironmentType:
+    Description: 'The EnvironmentType we are creating'
+    Type: String
+  Service:
+    Description: 'The service name'
+    Type: String
+  AppName:
+    Description: 'The application we are creating'
+    Type: String
+  CostCentre:
+    Description: 'The Owner to tag to tag the resources with.'
+    Type: String
+  VPCId:
+    Description: 'The ID of the VPC.'
+    Type: String
+  SubnetA:
+    Description: 'The ID of the Subnet for AZ A.'
+    Type: String
+  SubnetB:
+    Description: 'The ID of the Subnet for AZ B.'
+    Type: String
+  SubnetC:
+    Description: 'The ID of the Subnet for AZ C.'
+    Type: String
+  SecurityIngressCidrIp:
+    Type: String
+    Description: 'Optional - Specifies the CIDR/IP range for Security Ports - defaults to 0.0.0.0/0'
+    Default: 10.0.0.0/8
+  ECSLogsRetentionDays:
+    Description: The RetenionDays of ECS tasks
+    Type: Number
+    Default: 7
+  DesiredCount:
+    Description: ECS Task Desired account
+    Type: String
+    Default: 1
+  DockerCpu:
+    Description: The ammount of CPU to allocate to the docker container. (please note .25vCPU=256, .5vCPU=512, 1vCPU=1024)
+    Type: String
+    Default: '256'
+  DockerMemory:
+    Description: The ammount of Memory to allocate to the docker container.
+    Type: String
+    Default: '512'
+  DockerVersion:
+    Description: The docker image to use for the service.
+    Type: String
+    Default: latest
+  DockerRepo:
+    Description: The docker image to use for the service.
+    Type: String
+
+Resources:
+  # IAM Role for ECS instance 
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref AWS::StackName
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ELB Security Group with HTTP access on port 80
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: !Ref SecurityIngressCidrIp
+
+  ServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS Service SG
+      VpcId: !Ref VPCId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+ 
+
+  ECSCloudWatchGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref AWS::StackName
+      RetentionInDays: !Ref ECSLogsRetentionDays
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Description: Role to run the ECS Task
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole
+      Path: "/"
+      Policies:
+      - PolicyName: ECSTaskRole
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: "*"
+
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Description: Task execution Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Path: "/"
+      Policies:
+      - PolicyName: ECSExecutionTaskRole
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - ssm:Describe*
+            - ssm:Create*
+            - ssm:Get*
+            - ssm:List*
+            Resource: "*"
+          - Effect: Allow
+            Action:
+            - ecr:Describe*
+            - ecr:List*
+            - ecr:PutImage
+            - ecr:Get*
+            - ecr:BatchCheckLayerAvailability
+            - ecr:BatchGetImage
+            - ecr:UploadLayerPart
+            - ecr:CompleteLayerUpload
+            - ecr:InitiateLayerUpload
+            Resource:
+            - !Sub  arn:aws:ecr:ap-southeast-2:${AWS::AccountId}:repository/*
+  
+
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - ECSTaskRole
+      - HTTPSListener
+    Properties:
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: !Ref DesiredCount
+      Cluster: !Ref EcsCluster
+      LaunchType: FARGATE
+      LoadBalancers:
+        - TargetGroupArn: !Ref TaskTargetGroup
+          ContainerPort: 3000
+          ContainerName: demo-container
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+          - !Ref ServiceSecurityGroup
+          Subnets:
+            - !Ref SubnetA
+            - !Ref SubnetB
+            - !Ref SubnetC
+
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref AWS::StackName
+      TaskRoleArn: !Ref ECSTaskRole
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      NetworkMode: awsvpc
+      Cpu: !Ref DockerCpu
+      Memory: !Ref DockerMemory
+      RequiresCompatibilities:
+        - FARGATE
+      Tags:
+        - Key: Name
+          Value: demo-app
+        - Key: CostCentre
+          Value: !Ref CostCentre
+        - Key: Env
+          Value: !Ref EnvironmentType
+      ContainerDefinitions:
+        - Name: demo-container
+          Image: !Sub ${DockerRepo}:${DockerVersion}
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref ECSCloudWatchGroup
+              awslogs-region: ap-southeast-2
+              awslogs-stream-prefix: demo-app
+          PortMappings:
+            - ContainerPort: 3000
+
+## Define ELB ##
+  ElasticLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref SubnetA
+        - !Ref SubnetB
+        - !Ref SubnetC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppName}-${EnvironmentType}-${Service}-alb"
+      Scheme: internal
+
+  HTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: TaskTargetGroup
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TaskTargetGroup
+      LoadBalancerArn: !Ref ElasticLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  TaskTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 120
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 60
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 5
+      HealthCheckPort: 3000
+      HealthCheckPath: "/"
+      Matcher:
+        HttpCode: 200
+      Port: 80
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+      TargetType: ip 
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: ECS test Target group
+        - Key: Application
+          Value: !Ref AppName
+        - Key: Environment
+          Value: !Ref EnvironmentType
+
+
+Outputs:
+  LoadBalancerSecurityGroupID:
+    Description: ID of the Load Balancer Security Group
+    Value: !GetAtt LoadBalancerSecurityGroup.GroupId
+  LoadBalancerDNSName:
+    Description: Name of the load balancer
+    Value: !GetAtt ElasticLoadBalancer.DNSName
+  EcsCluster:
+    Description: ECS Cluster
+    Value: !Ref EcsCluster

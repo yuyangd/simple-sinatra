@@ -36,7 +36,7 @@ Wait for the stack creation complate (stack name: ${SERVICE_NAME}-${ENVIRONMENT_
 
 ## what resources will be created
 
-1. s3 bucket with name ```${ACCOUNTID}-${STACKNAME}```, which will be used to store scripts as well as web servers config files
+1. s3 bucket, which will be used to store scripts as well as web servers config files
 2. EC2, ASG, IAM, ALB, SG, ASG Policy
 
 ## Cleanup stack/resources
@@ -85,10 +85,11 @@ something can be done for Security:
 1. consider to add Route53
 2. ALB can be made public (ssl cert, change to port 443), using SG ingress to control access
 
+
 CICD
 ===================================
-You can call makefile from most of the CICD pipeline.
-GIT_Commit_Sha is used for uploading and identify src file, it is also passed as the parameter for cloudformation update, which will deploy the new src if there is change on your ruby code.
+1. You can call makefile from most of the CICD pipeline.
+2. GIT_Commit_Sha is used for uploading and identify src file, it is also passed as the parameter for cloudformation update, which will deploy the new src if there is change on your ruby code.
 
 
 Deploy using docker
