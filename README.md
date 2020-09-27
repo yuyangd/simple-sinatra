@@ -1,5 +1,9 @@
 
+app-demo deployment
+===================================
 
+- this is for sinatra app deploy demo
+- there are 3 solutions - EC2, ECS and k8s, this readme only related to EC2 solution. Docker solution can be found under dockerdemo folder.
 
 Prerequisite
 ===================================
