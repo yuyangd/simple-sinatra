@@ -53,7 +53,7 @@ You will need to update the following 4 parameters from **common.mk** file.
     ```
     * **please note**: if you want to update the existing stack (S3 bucket is created already, and scripts zip file has uploaded to S3), only run ```make deploy```, this will not create s3 bucket, but only upload zip file and update cloudformation stack
 
-Wait for the stack creation complate (stack name: ${SERVICE_NAME}-${ENVIRONMENT_TYPE}-${APP_NAME}), once EC2 is ready, come to the cloudformation console --> stack output, and simply click the output url (https//${LoadBalancer.DNSName}:80)
+Wait for the stack creation complate (stack name: ${SERVICE_NAME}-${ENVIRONMENT_TYPE}-${APP_NAME}), once EC2 is ready, come to the cloudformation console --> stack output, and simply click the output url (AppALBUrl)
 
 ## what resources will be created
 

@@ -30,6 +30,7 @@ You will need to update the following 4 parameters from **common.mk** file.
 
 1. Before deploy, run:
     ```
+    cd dockerdemo/ecs
     make check-params
     ```
    check output parameters, and verify the vpc and 3 subnets are all correct
@@ -38,11 +39,11 @@ You will need to update the following 4 parameters from **common.mk** file.
     ```
     make deploy
     ```
-Wait for the stack creation complate (stack name: ${SERVICE_NAME}-${ENVIRONMENT_TYPE}-${APP_NAME}), come to the cloudformation console --> stack output, and simply click the LoadBalancerDNSName output url
+Wait for the stack creation complate, come to cloudformation console --> stack output, and simply click the LoadBalancerDNSName output url
 
 ## what resources will be created
 
-ECS Fargate, IAM role and policy, ALB, SG
+ECS Fargate(cluster, service, task, task defination, etc.), IAM role and policy, ALB, SG
 
 ## Cleanup stack/resources
 run

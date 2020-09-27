@@ -13,6 +13,7 @@ k8s
 # CI
 * To build the image, run 
 ```
+cd dockerdemo/k8s
 make build
 ```
 it will build and push docker image to dockerhub (repo: amyjdocker/sinatrademo), I have built and pushed to my public dockerhub repo: amyjdocker/sinatrademo
