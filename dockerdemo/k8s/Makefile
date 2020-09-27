@@ -17,7 +17,7 @@ build:
 	# uncomment below push command for after you change to your own $(REPO)
 	###
 	# docker push $(REPO)/$(IMAGE):$(TAG)
-	docker push $(REPO)/$(IMAGE):latest
+	# docker push $(REPO)/$(IMAGE):latest
 
 deploy:
 	kubectl apply -f pipeline/k8s-deploy.yaml
