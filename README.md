@@ -3,7 +3,7 @@ app-demo deployment
 ===================================
 
 - this is for sinatra app deploy demo
-- there are 3 solutions - EC2, ECS and k8s, this readme only related to EC2 solution. Docker solution can be found under dockerdemo folder.
+- there are 3 solutions - EC2, ECS and k8s, this readme only related to EC2 solution. Docker solutions (ECS, k8s) can be found under dockerdemo folder.
 
 Prerequisite
 ===================================
@@ -11,6 +11,23 @@ Prerequisite
 2. and your private subnets can access internet by NATGateway
 3. You have installed awscli locally, and you have configured AWS creds in **credentials** file, with **region = ap-southeast-2**
 4. Clone this repo to your local
+
+
+Design
+===================================
+
+This is the repo to install some required packages and deploy a demo app on EC2 instance.
+Here is the diagram to explain my design:
+
+<img src="readme-img/design.png" width="450">
+
+
+I used cloudformation + shell scripts + Makefile to deploy and config EC2 instance on AWS cloud env, EC2 configurations are managed in userdata. The advantages of this method:
+
+1. EC2 instance is configured during stack creation/update, no extra steps required to do further configuration.
+2. Use Makefile to manage scripts dependency and also as the entry of your deplyment, it makes the build/deploy steps easy to run
+3. Use query to get env parameters, rather than hardcode in parameter file, for example: AWS_AccoutID, SubnetID, etc, this will provide the env independent deployment solution, you can use the same infra-as-code to deploy accross mutiple AWS accounts and mutiple enviorments (e.g: dev, test, preprod, prod)
+
 
 Deploy
 ===================================
@@ -50,20 +67,6 @@ make clean-up
 ```
 will clean all the resources, including S3 bucket
 
-Design
-===================================
-
-This is the repo to install some required packages and deploy a demo app on EC2 instance.
-Here is the diagram to explain my design:
-
-<img src="readme-img/design.png" width="450">
-
-
-I used cloudformation + shell scripts + Makefile to deploy and config EC2 instance on AWS cloud env, EC2 configurations are managed in userdata. The advantages of this method:
-
-1. EC2 instance is configured during stack creation/update, no extra steps required to do further configuration.
-2. Use Makefile to manage scripts dependency and also as the entry of your deplyment, it makes the build/deploy steps easy to run
-3. Use query to get env parameters, rather than hardcode in parameter file, for example: AWS_AccoutID, SubnetID, etc, this will provide the env independent deployment solution, you can use the same infra-as-code to deploy accross mutiple AWS accounts and mutiple enviorments (e.g: dev, test, preprod, prod)
 
 ## Security, HA and others
 
