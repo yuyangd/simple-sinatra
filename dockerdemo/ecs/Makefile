@@ -1,14 +1,14 @@
 include ./common.mk
 # query current git commitsha
-GIT_COMMIT_SHORT  ?= $(shell git rev-parse --short HEAD)
-REPO			?= amyjdocker
-IMAGE			?= sinatrademo
-TAG				?= $(GIT_COMMIT_SHORT)
-ACCOUNTID          = $(shell aws sts get-caller-identity --query Account --output text)
+GIT_COMMIT_SHORT  	?= $(shell git rev-parse --short HEAD)
+REPO				?= amyjdocker
+IMAGE				?= sinatrademo
+TAG					?= $(GIT_COMMIT_SHORT)
+ACCOUNTID          	 = $(shell aws sts get-caller-identity --query Account --output text)
 
-STACKNAME          = ${SERVICE_NAME}-${ENVIRONMENT_TYPE}-${APP_NAME}-ecs
-TEMPLATEPATH       = ./cfn
-DesiredCapacity = 1
+STACKNAME          	 = ${SERVICE_NAME}-${ENVIRONMENT_TYPE}-${APP_NAME}-ecs
+TEMPLATEPATH       	 = ./cfn
+DesiredCapacity 	 = 1
 
 .SILENT:
 .EXPORT_ALL_VARIABLES:
