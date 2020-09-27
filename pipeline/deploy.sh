@@ -18,6 +18,8 @@ aws cloudformation deploy \
     "CostCentre=${COSTCENTRE}" \
     "AmiID=${AmiID}" \
     "Gitsha=${GIT_COMMIT_SHORT}" \
+    "CpuAlarmHighThreshold=${CpuAlarmHighThreshold}" \
+    "CpuAlarmLowThreshold=${CpuAlarmLowThreshold}" \
     --tags \
     "ServiceName=${SERVICE_NAME}" \
     "AppName=${APP_NAME}" \

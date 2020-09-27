@@ -12,6 +12,8 @@ InstanceType       = t3.micro
 ScalingDesiredCapacity = 1
 ScalingMinCapacity = 1
 ScalingMaxCapacity = 2
+CpuAlarmHighThreshold = 90
+CpuAlarmLowThreshold = 15
 
 check-params:
 	@echo VPC is : ${VPCID}

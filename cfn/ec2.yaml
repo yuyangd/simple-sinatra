@@ -53,6 +53,18 @@ Parameters:
     - ELB
   Gitsha:
     Type: String
+  CpuAlarmHighThreshold:
+    Description: The ASG CPU trigger value from the Cloudwatch Alarm
+    Type: String
+    Default: '85'
+  CpuAlarmLowThreshold:
+    Description: The ASG CPU trigger value from the Cloudwatch Alarm
+    Type: String
+    Default: '15'
+  # EstimatedInstanceWarmup:
+  #   Description: Time it takes to launch an EC2 instance
+  #   Type: String
+  #   Default: '180'
 
 Resources:
 
@@ -222,6 +234,65 @@ Resources:
       DefaultActions:
       - TargetGroupArn: !Ref ALBTargetGroup
         Type: forward
+
+# ASG Policy
+  ASGScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      PolicyType: StepScaling
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref InstanceAutoScalingGroup
+      EstimatedInstanceWarmup: '180'
+      MetricAggregationType: Average
+      StepAdjustments:
+        - MetricIntervalLowerBound: '0'
+          ScalingAdjustment: '1'
+
+  ASGScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      PolicyType: StepScaling
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref InstanceAutoScalingGroup
+      EstimatedInstanceWarmup: '180'
+      MetricAggregationType: Average
+      StepAdjustments:
+        - MetricIntervalUpperBound: '0'
+          ScalingAdjustment: '-1'
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Instance CPU High
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '60'
+      EvaluationPeriods: '2'
+      Threshold: !Ref CpuAlarmHighThreshold
+      AlarmActions:
+      - !Ref ASGScaleUpPolicy
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref InstanceAutoScalingGroup
+      ComparisonOperator: GreaterThanThreshold
+
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Instance CPU Low
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '300'
+      EvaluationPeriods: '2'
+      Threshold: !Ref CpuAlarmLowThreshold
+      AlarmActions:
+      - !Ref ASGScaleDownPolicy
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref InstanceAutoScalingGroup
+      ComparisonOperator: LessThanThreshold
 
 Outputs:
   AppALBUrl:
